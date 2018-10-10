@@ -1,9 +1,7 @@
 'use strict';
 
-const simpleLogger = function (req, res, next) {
-  const now = new Date();
-  console.log(`${now.toLocaleString()} ${req.method} ${req.url}`);
-  next();
-};
+const morgan = require('morgan');
 
-module.exports = simpleLogger;
+const logger = morgan('dev');
+
+module.exports = logger;
