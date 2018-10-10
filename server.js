@@ -1,38 +1,113 @@
 'use strict';
 
-// Load array of notes
-const data = require('./db/notes');
-
-console.log('Hello Noteful!');
-
-// INSERT EXPRESS APP CODE HERE...
-
 const express = require('express');
 
+// Simple In-Memory Database
+const data = require('./db/notes');
+const simDB = require('./db/simDB');
+const notes = simDB.initialize(data);
+
+const logger = require('./middleware/logger');
+const { PORT } = require('./config');
+
+// Create an Express application
 const app = express();
 
+// Log all requests
+app.use(logger);
+
+// Create a static webserver
 app.use(express.static('public'));
 
-app.get('/api/notes', (req, res) => {
-  if (req.query.searchTerm) {
-    const searchTerm = (req.query.searchTerm);
-    const searchedItems = data.filter(item => item.title.includes(searchTerm) || item.content.includes(searchTerm));
-    res.json(searchedItems);
-  } else {
-    res.json(data);
-  }
+// Parse request body
+app.use(express.json());
+
+// Get All (and search by query)
+app.get('/api/notes', (req, res, next) => {
+  const { searchTerm } = req.query;
+
+  notes.filter(searchTerm, (err, list) => {
+    if (err) {
+      return next(err);
+    }
+    res.json(list);
+  });
 });
 
-app.get('/api/notes/:id', (req, res) => {
+// Get a single item
+app.get('/api/notes/:id', (req, res, next) => {
   const id = req.params.id;
-  const foundItem = data.find(item => item['id'] === Number(id));
-  res.json(foundItem);
+
+  notes.find(id, (err, item) => {
+    if (err) {
+      return next(err);
+    }
+    if (item) {
+      res.json(item);
+    } else {
+      next();
+    }
+  });
 });
 
+// Put update an item
+app.put('/api/notes/:id', (req, res, next) => {
+  const id = req.params.id;
 
-app.listen(8080, function() {
+  /***** Never trust users - validate input *****/
+  const updateObj = {};
+  const updateableFields = ['title', 'content'];
+
+  updateableFields.forEach(field => {
+    if (field in req.body) {
+      updateObj[field] = req.body[field];
+    }
+  });
+
+  /***** Never trust users - validate input *****/
+  if (!updateObj.title) {
+    const err = new Error('Missing `title` in request body');
+    err.status = 400;
+    return next(err);
+  }
+
+  notes.update(id, updateObj, (err, item) => {
+    if (err) {
+      return next(err);
+    }
+    if (item) {
+      res.json(item);
+    } else {
+      next();
+    }
+  });
+});
+
+// DEMO ONLY: brute-force way to test our error handler
+app.get('/throw', (req, res, next) => {
+  throw new Error('Boom!!');
+});
+
+// Catch-all 404
+app.use(function (req, res, next) {
+  const err = new Error('Not Found');
+  err.status = 404;
+  next(err);
+});
+
+// Catch-all Error handler
+// NOTE: we'll prevent stacktrace leak in later exercise
+app.use(function (err, req, res, next) {
+  res.status(err.status || 500);
+  res.json({
+    message: err.message,
+    error: err
+  });
+});
+
+// Listen for incoming connections
+app.listen(PORT, function () {
   console.info(`Server listening on ${this.address().port}`);
 }).on('error', err => {
-  console.log(err);
-
+  console.error(err);
 });
