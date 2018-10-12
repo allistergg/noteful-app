@@ -194,16 +194,6 @@ describe('DELETE /api/notes/:id', function () {
           .then(function (res) {
             expect(res).to.have.status(204);
           });
-
-
-
-
-
-
-
-
       });
-
-
   });
 });
