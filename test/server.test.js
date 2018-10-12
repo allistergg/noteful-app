@@ -74,7 +74,6 @@ describe('GET /api/notes', function () {
     return chai.request(app)
       .get('/api/notes?searchTerm=INVALIDSEARCHTERM')
       .then(function (res) {
-        console.log(res.body);
         expect(res.body).to.be.a('array');
         expect(res.body.length).to.equal(0);
       });
